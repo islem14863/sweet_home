@@ -46,8 +46,7 @@ export function SessionProvider({ children }: PropsWithChildren) {
   const signIn = async (email: string, password: string) => {
     try {
       const response = await signInWithEmailAndPassword(auth, email, password);
-      console.log("response", response);
-      setSession(email);
+      setSession(response.user.uid);
       return true;
     } catch (error) {
       console.error(error);

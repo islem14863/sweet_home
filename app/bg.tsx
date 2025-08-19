@@ -1,7 +1,6 @@
 import React from 'react';
 import { StyleSheet, View, useWindowDimensions, Platform } from 'react-native';
 import { Video, ResizeMode } from 'expo-av';
-const { width, height } = useWindowDimensions();
 import { PropsWithChildren } from 'react';
 
 export default function BackgroundVideo({ children }: PropsWithChildren<{}>) {
@@ -47,7 +46,7 @@ export default function BackgroundVideo({ children }: PropsWithChildren<{}>) {
   </View>
   );}
 }
-
+const { width, height } = useWindowDimensions();
 const styles = StyleSheet.create({
   container: {
     width,

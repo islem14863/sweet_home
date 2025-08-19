@@ -2,8 +2,8 @@ import {
   createContext,
   useContext,
   useEffect,
-  useState,
   type PropsWithChildren,
+  useState,
 } from "react";
 import {
   onAuthStateChanged,
@@ -12,7 +12,7 @@ import {
   signOut as firebaseSignOut,
 } from "firebase/auth";
 import { Alert } from "react-native";
-import { auth } from "./firebaseConfig";
+import auth from "./firebaseConfig";
 import { useStorageState } from "./useStorageState";
 
 type AuthContextType = {
@@ -34,22 +34,34 @@ export function useSession() {
 }
 
 export function SessionProvider({ children }: PropsWithChildren) {
-  const [[isLoading, session], setSession] = useStorageState("session");
+  const [[storageIsLoading, session], setSession] = useStorageState("session");
+  const [authIsLoading, setAuthIsLoading] = useState(true);
 
-  // useEffect(() => {
-  //   const unsubscribe = onAuthStateChanged(auth, (user) => {
-  //     setSession(user ? user.uid : null);
-  //   });
-  //   return unsubscribe;
-  // }, []);
+  useEffect(() => {
+    let isMounted = true;
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (!isMounted) return;
+      setSession(user ? user.uid : null);
+      setAuthIsLoading(false);
+    });
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, [setSession]);
+
+  const isLoading = storageIsLoading || authIsLoading;
 
   const signIn = async (email: string, password: string) => {
     try {
+      setAuthIsLoading(true);
       const response = await signInWithEmailAndPassword(auth, email, password);
       setSession(response.user.uid);
+      setAuthIsLoading(false);
       return true;
     } catch (error) {
       console.error(error);
+      setAuthIsLoading(false);
       Alert.alert("Sign-in failed", "Invalid email or password");
       return false;
     }
@@ -57,9 +69,17 @@ export function SessionProvider({ children }: PropsWithChildren) {
 
   const signUp = async (email: string, password: string) => {
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
+      setAuthIsLoading(true);
+      const response = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+      setSession(response.user.uid);
+      setAuthIsLoading(false);
       return true;
     } catch (error: any) {
+      setAuthIsLoading(true);
       if (error.code === "auth/email-already-in-use") {
         Alert.alert("Email already in use", "Try signing in instead.");
       } else if (error.code === "auth/invalid-email") {
@@ -73,13 +93,22 @@ export function SessionProvider({ children }: PropsWithChildren) {
         Alert.alert("Sign up error", error.message);
       }
       console.error("Sign-up error:", error);
+      setAuthIsLoading(false);
       return false;
     }
   };
 
   const signOut = async () => {
-    setSession(null);
-    await firebaseSignOut(auth);
+    try {
+      setAuthIsLoading(true);
+      await firebaseSignOut(auth);
+      setSession(null);
+      setAuthIsLoading(false);
+    } catch (error) {
+      setAuthIsLoading(false);
+      console.error("Sign-out error:", error);
+      Alert.alert("Error signing out", "Please try again.");
+    }
   };
 
   return (
